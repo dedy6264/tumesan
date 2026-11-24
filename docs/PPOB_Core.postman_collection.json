@@ -1,0 +1,1649 @@
+{
+  "info": {
+    "name": "PPOB Core API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Dokumentasi integrasi PPOB Core (Go/Echo). Set variabel `base_url` dan `app_key` (APP_KEY di .env Core), `jwt_token` (otomatis terisi saat hit endpoint Login), serta `provider_callback_token` untuk webhook."
+  },
+  "item": [
+    {
+      "name": "Internal API (HMAC)",
+      "description": "Endpoint /api/v1/*. Header X-Timestamp & X-Signature dibuat otomatis oleh pre-request script.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Signature HMAC-SHA256: timestamp \\n METHOD \\n request-uri(+query) \\n body",
+              "const CryptoJS = require('crypto-js');",
+              "const ts = Math.floor(Date.now() / 1000).toString();",
+              "const method = pm.request.method;",
+              "const uri = pm.variables.replaceIn(pm.request.url.getPathWithQuery());",
+              "const raw = (pm.request.body && pm.request.body.raw) ? pm.variables.replaceIn(pm.request.body.raw) : '';",
+              "const sig = CryptoJS.HmacSHA256(ts + '\\n' + method + '\\n' + uri + '\\n' + raw, pm.variables.get('app_key')).toString(CryptoJS.enc.Hex);",
+              "pm.request.headers.upsert({ key: 'X-Timestamp', value: ts });",
+              "pm.request.headers.upsert({ key: 'X-Signature', value: sig });"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Request OTP",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/otp/request",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "otp",
+                    "request"
+                  ]
+                },
+                "description": "Meminta kode OTP via WhatsApp. Perilaku bergantung pada `action_type`:\n- `REGISTER`: nomor harus belum terdaftar (isi `phone_number`).\n- `LOGIN`: nomor harus sudah terdaftar (isi `phone_number`).\n- `DEVICE_BINDING`: wajib `phone_number` + `password` valid (mencegah spam OTP ke nomor orang lain).\nAda cooldown antar permintaan OTP. Pada `APP_ENV=local` dan `WA_PROVIDER=log`, respons memuat `debug_otp` (hanya development).\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| action_type | string | Ya | REGISTER | LOGIN | DEVICE_BINDING |\n| phone_number | string | Ya | Nomor WhatsApp (08xx / 62xx / +62xx) |\n| password | string | Kondisional | Wajib untuk DEVICE_BINDING |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 409 | 03 | REGISTER: nomor sudah terdaftar |\n| 401 | 05 | LOGIN: nomor belum terdaftar, atau DEVICE_BINDING: kredensial salah |\n| 429 | 03 | Permintaan OTP terlalu cepat (cooldown) |\n| 422 | 03 | Parameter tidak valid |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action_type\": \"REGISTER\",\n  \"phone_number\": \"081234567890\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/auth/otp/request",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "auth",
+                        "otp",
+                        "request"
+                      ]
+                    },
+                    "description": "Meminta kode OTP via WhatsApp. Perilaku bergantung pada `action_type`:\n- `REGISTER`: nomor harus belum terdaftar (isi `phone_number`).\n- `LOGIN`: nomor harus sudah terdaftar (isi `phone_number`).\n- `DEVICE_BINDING`: wajib `phone_number` + `password` valid (mencegah spam OTP ke nomor orang lain).\nAda cooldown antar permintaan OTP. Pada `APP_ENV=local` dan `WA_PROVIDER=log`, respons memuat `debug_otp` (hanya development).\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| action_type | string | Ya | REGISTER | LOGIN | DEVICE_BINDING |\n| phone_number | string | Ya | Nomor WhatsApp (08xx / 62xx / +62xx) |\n| password | string | Kondisional | Wajib untuk DEVICE_BINDING |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 409 | 03 | REGISTER: nomor sudah terdaftar |\n| 401 | 05 | LOGIN: nomor belum terdaftar, atau DEVICE_BINDING: kredensial salah |\n| 429 | 03 | Permintaan OTP terlalu cepat (cooldown) |\n| 422 | 03 | Parameter tidak valid |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"action_type\": \"REGISTER\",\n  \"phone_number\": \"081234567890\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"Kode OTP berhasil dikirim ke nomor WhatsApp Anda\",\n  \"data\": {\n    \"phone_masked\": \"0812****890\",\n    \"expires_in\": 300,\n    \"cooldown_seconds\": 60,\n    \"debug_otp\": \"123456\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Verifikasi OTP",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/otp/verify",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "description": "Memvalidasi kode OTP sebelum melanjutkan ke tahap registrasi atau login. Endpoint ini hanya memeriksa kecocokan OTP tanpa menandainya sebagai consumed agar kode OTP tetap dapat dipakai saat memanggil `/api/v1/auth/register-with-otp` atau `/api/v1/auth/login`.\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| phone_number | string | Ya | Nomor WhatsApp |\n| action_type | string | Ya | REGISTER | LOGIN | DEVICE_BINDING |\n| otp_code | string | Ya | Kode OTP 6 digit |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 400 | 03 | phone_number atau otp_code kosong |\n| 422 | 03 | OTP salah, expired, atau melebihi batas percobaan |\n| 404 | 04 | Tidak ada OTP aktif untuk nomor & aksi ini |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone_number\": \"081234567890\",\n  \"action_type\": \"REGISTER\",\n  \"otp_code\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/auth/otp/verify",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "auth",
+                        "otp",
+                        "verify"
+                      ]
+                    },
+                    "description": "Memvalidasi kode OTP sebelum melanjutkan ke tahap registrasi atau login. Endpoint ini hanya memeriksa kecocokan OTP tanpa menandainya sebagai consumed agar kode OTP tetap dapat dipakai saat memanggil `/api/v1/auth/register-with-otp` atau `/api/v1/auth/login`.\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| phone_number | string | Ya | Nomor WhatsApp |\n| action_type | string | Ya | REGISTER | LOGIN | DEVICE_BINDING |\n| otp_code | string | Ya | Kode OTP 6 digit |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 400 | 03 | phone_number atau otp_code kosong |\n| 422 | 03 | OTP salah, expired, atau melebihi batas percobaan |\n| 404 | 04 | Tidak ada OTP aktif untuk nomor & aksi ini |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone_number\": \"081234567890\",\n  \"action_type\": \"REGISTER\",\n  \"otp_code\": \"123456\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"OTP berhasil diverifikasi\",\n  \"data\": {\n    \"verified\": true\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Register dengan OTP",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/register-with-otp",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "register-with-otp"
+                  ]
+                },
+                "description": "Membuat akun MERCHANT baru setelah OTP `REGISTER` valid. Akun hanya dibuat di tabel `users` setelah OTP benar. Nomor HP valid: diawali `08`, 10–14 digit.\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| name | string | Ya | Nama lengkap |\n| phone_number | string | Ya | Nomor WhatsApp |\n| password | string | Ya | Minimal 6 karakter |\n| store_name | string | Ya | Nama toko |\n| otp_code | string | Ya | Kode OTP dari Request OTP (REGISTER) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 409 | 03 | Nomor sudah terdaftar |\n| 422 | 03 | Validasi OTP gagal |\n| 404 | 04 | Tidak ada OTP aktif untuk nomor ini |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Budi Santoso\",\n  \"phone_number\": \"081234567890\",\n  \"password\": \"rahasia123\",\n  \"store_name\": \"Toko Budi\",\n  \"otp_code\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/auth/register-with-otp",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "auth",
+                        "register-with-otp"
+                      ]
+                    },
+                    "description": "Membuat akun MERCHANT baru setelah OTP `REGISTER` valid. Akun hanya dibuat di tabel `users` setelah OTP benar. Nomor HP valid: diawali `08`, 10–14 digit.\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| name | string | Ya | Nama lengkap |\n| phone_number | string | Ya | Nomor WhatsApp |\n| password | string | Ya | Minimal 6 karakter |\n| store_name | string | Ya | Nama toko |\n| otp_code | string | Ya | Kode OTP dari Request OTP (REGISTER) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 409 | 03 | Nomor sudah terdaftar |\n| 422 | 03 | Validasi OTP gagal |\n| 404 | 04 | Tidak ada OTP aktif untuk nomor ini |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"name\": \"Budi Santoso\",\n  \"phone_number\": \"081234567890\",\n  \"password\": \"rahasia123\",\n  \"store_name\": \"Toko Budi\",\n  \"otp_code\": \"123456\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 201,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"Pendaftaran berhasil\",\n  \"data\": {\n    \"id\": 12,\n    \"price_group_id\": 1,\n    \"name\": \"Budi Santoso\",\n    \"phone_number\": \"081234567890\",\n    \"role\": \"MERCHANT\",\n    \"store_name\": \"Toko Budi\",\n    \"current_device_id\": \"device-abc-123\",\n    \"is_phone_verified\": true,\n    \"created_at\": \"2026-10-01T09:00:00+07:00\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Login",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/login",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Login menggunakan nomor HP dengan `password` ATAU `otp_code` (dari aksi `LOGIN`). Perangkat pertama otomatis terikat (`current_device_id`). Saat login sukses, sistem membentuk JWT token (`data.token`) yang memuat `user_id`, `role`, dan `device_id` untuk otorisasi endpoint transaksi & katalog user login. Bila `device_id` berbeda dari yang terikat, API mengembalikan HTTP 422 (`requires_otp: true`, `action_type: DEVICE_BINDING`) dan klien harus menjalankan alur Device Binding terlebih dahulu sebelum login ulang.\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| phone_number | string | Ya | Nomor WhatsApp |\n| password | string | Kondisional | Kata sandi (wajib jika otp_code kosong) |\n| otp_code | string | Kondisional | Kode OTP LOGIN (opsional, alternatif login tanpa password) |\n| device_id | string | Ya | ID unik perangkat klien |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Kredensial salah |\n| 422 | 99 | Perangkat berbeda dari current_device_id |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone_number\": \"081234567890\",\n  \"password\": \"rahasia123\",\n  \"otp_code\": \"\",\n  \"device_id\": \"device-abc-123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/auth/login",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "auth",
+                        "login"
+                      ]
+                    },
+                    "description": "Login menggunakan nomor HP dengan `password` ATAU `otp_code` (dari aksi `LOGIN`). Perangkat pertama otomatis terikat (`current_device_id`). Saat login sukses, sistem membentuk JWT token (`data.token`) yang memuat `user_id`, `role`, dan `device_id` untuk otorisasi endpoint transaksi & katalog user login. Bila `device_id` berbeda dari yang terikat, API mengembalikan HTTP 422 (`requires_otp: true`, `action_type: DEVICE_BINDING`) dan klien harus menjalankan alur Device Binding terlebih dahulu sebelum login ulang.\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| phone_number | string | Ya | Nomor WhatsApp |\n| password | string | Kondisional | Kata sandi (wajib jika otp_code kosong) |\n| otp_code | string | Kondisional | Kode OTP LOGIN (opsional, alternatif login tanpa password) |\n| device_id | string | Ya | ID unik perangkat klien |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Kredensial salah |\n| 422 | 99 | Perangkat berbeda dari current_device_id |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone_number\": \"081234567890\",\n  \"password\": \"rahasia123\",\n  \"otp_code\": \"\",\n  \"device_id\": \"device-abc-123\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"Login berhasil\",\n  \"data\": {\n    \"id\": 12,\n    \"price_group_id\": 1,\n    \"name\": \"Budi Santoso\",\n    \"phone_number\": \"081234567890\",\n    \"role\": \"MERCHANT\",\n    \"store_name\": \"Toko Budi\",\n    \"current_device_id\": \"device-abc-123\",\n    \"is_phone_verified\": true,\n    \"created_at\": \"2026-10-01T09:00:00+07:00\",\n    \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMiwicm9sZSI6Ik1FUkNIQU5UIiwiZGV2aWNlX2lkIjoiZGV2aWNlLWFiYy0xMjMiLCJpYXQiOjE3NjAyMzI2MDAsImV4cCI6MTc2MDMxOTAwMH0.signature\"\n  }\n}"
+                },
+                {
+                  "name": "Perangkat baru (Wajib OTP Device Binding)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/auth/login",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "auth",
+                        "login"
+                      ]
+                    },
+                    "description": "Login menggunakan nomor HP dengan `password` ATAU `otp_code` (dari aksi `LOGIN`). Perangkat pertama otomatis terikat (`current_device_id`). Saat login sukses, sistem membentuk JWT token (`data.token`) yang memuat `user_id`, `role`, dan `device_id` untuk otorisasi endpoint transaksi & katalog user login. Bila `device_id` berbeda dari yang terikat, API mengembalikan HTTP 422 (`requires_otp: true`, `action_type: DEVICE_BINDING`) dan klien harus menjalankan alur Device Binding terlebih dahulu sebelum login ulang.\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| phone_number | string | Ya | Nomor WhatsApp |\n| password | string | Kondisional | Kata sandi (wajib jika otp_code kosong) |\n| otp_code | string | Kondisional | Kode OTP LOGIN (opsional, alternatif login tanpa password) |\n| device_id | string | Ya | ID unik perangkat klien |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Kredensial salah |\n| 422 | 99 | Perangkat berbeda dari current_device_id |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone_number\": \"081234567890\",\n  \"password\": \"rahasia123\",\n  \"otp_code\": \"\",\n  \"device_id\": \"device-abc-123\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "Error",
+                  "code": 422,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"99\",\n  \"status_description\": \"Login dari perangkat baru terdeteksi. Verifikasi OTP diperlukan\",\n  \"data\": {\n    \"requires_otp\": true,\n    \"action_type\": \"DEVICE_BINDING\"\n  }\n}"
+                }
+              ],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "try {",
+                      "  const res = pm.response.json();",
+                      "  if (res && res.data && res.data.token) {",
+                      "    pm.environment.set('jwt_token', res.data.token);",
+                      "    pm.collectionVariables.set('jwt_token', res.data.token);",
+                      "  }",
+                      "} catch (e) {}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Device Binding",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/device-binding",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "device-binding"
+                  ]
+                },
+                "description": "Memindahkan ikatan akun ke perangkat baru setelah OTP `DEVICE_BINDING` valid. Sesi di perangkat lama otomatis tidak valid. Urutan: Login (perangkat baru) -> Request OTP (DEVICE_BINDING) -> Device Binding.\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| phone_number | string | Ya | Nomor WhatsApp |\n| password | string | Ya | Kata sandi |\n| device_id | string | Ya | ID perangkat baru |\n| otp_code | string | Ya | OTP DEVICE_BINDING |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Kredensial salah |\n| 422 | 03 | OTP salah atau kedaluwarsa |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone_number\": \"081234567890\",\n  \"password\": \"rahasia123\",\n  \"device_id\": \"device-baru-456\",\n  \"otp_code\": \"123456\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/auth/device-binding",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "auth",
+                        "device-binding"
+                      ]
+                    },
+                    "description": "Memindahkan ikatan akun ke perangkat baru setelah OTP `DEVICE_BINDING` valid. Sesi di perangkat lama otomatis tidak valid. Urutan: Login (perangkat baru) -> Request OTP (DEVICE_BINDING) -> Device Binding.\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| phone_number | string | Ya | Nomor WhatsApp |\n| password | string | Ya | Kata sandi |\n| device_id | string | Ya | ID perangkat baru |\n| otp_code | string | Ya | OTP DEVICE_BINDING |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Kredensial salah |\n| 422 | 03 | OTP salah atau kedaluwarsa |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"phone_number\": \"081234567890\",\n  \"password\": \"rahasia123\",\n  \"device_id\": \"device-baru-456\",\n  \"otp_code\": \"123456\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"Perangkat berhasil diganti\",\n  \"data\": {\n    \"id\": 12,\n    \"price_group_id\": 1,\n    \"name\": \"Budi Santoso\",\n    \"phone_number\": \"081234567890\",\n    \"role\": \"MERCHANT\",\n    \"store_name\": \"Toko Budi\",\n    \"current_device_id\": \"device-baru-456\",\n    \"is_phone_verified\": true,\n    \"created_at\": \"2026-10-01T09:00:00+07:00\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Cek Sesi",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/session?user_id=12&device_id=device-abc-123",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "session"
+                  ],
+                  "query": [
+                    {
+                      "key": "user_id",
+                      "value": "12",
+                      "description": "ID pengguna",
+                      "disabled": false
+                    },
+                    {
+                      "key": "device_id",
+                      "value": "device-abc-123",
+                      "description": "ID perangkat aktif",
+                      "disabled": false
+                    }
+                  ]
+                },
+                "description": "Validasi sesi single-device. Dipanggil pada setiap request terautentikasi untuk memastikan perangkat masih sesuai dengan `current_device_id`.\n\n**Query**\n\n| Param | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| user_id | integer | Ya | ID pengguna |\n| device_id | string | Ya | ID perangkat aktif |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | user tidak ada / device_id tidak cocok |"
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/auth/session?user_id=12&device_id=device-abc-123",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "auth",
+                        "session"
+                      ],
+                      "query": [
+                        {
+                          "key": "user_id",
+                          "value": "12",
+                          "description": "ID pengguna",
+                          "disabled": false
+                        },
+                        {
+                          "key": "device_id",
+                          "value": "device-abc-123",
+                          "description": "ID perangkat aktif",
+                          "disabled": false
+                        }
+                      ]
+                    },
+                    "description": "Validasi sesi single-device. Dipanggil pada setiap request terautentikasi untuk memastikan perangkat masih sesuai dengan `current_device_id`.\n\n**Query**\n\n| Param | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| user_id | integer | Ya | ID pengguna |\n| device_id | string | Ya | ID perangkat aktif |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | user tidak ada / device_id tidak cocok |"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"SUCCESS\",\n  \"data\": {\n    \"id\": 12,\n    \"price_group_id\": 1,\n    \"name\": \"Budi Santoso\",\n    \"phone_number\": \"081234567890\",\n    \"role\": \"MERCHANT\",\n    \"store_name\": \"Toko Budi\",\n    \"current_device_id\": \"device-abc-123\",\n    \"is_phone_verified\": true,\n    \"created_at\": \"2026-10-01T09:00:00+07:00\"\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Katalog",
+          "item": [
+            {
+              "name": "Katalog Produk (Filter & Pencarian)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "description": "Wajib untuk User Login (kosongkan/nonaktifkan untuk Guest)"
+                  },
+                  {
+                    "key": "X-User-ID",
+                    "value": "12",
+                    "description": "Opsional: jika diisi, wajib sama dengan user_id pada JWT"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/products",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products"
+                  ]
+                },
+                "description": "Mengambil daftar produk aktif beserta harga sesuai price group pengguna.\n\n- **User Login:** Sertakan header `Authorization: Bearer <token>` (opsional `X-User-ID` harus sesuai `user_id` di token). Bila token tidak valid/expired atau perangkat sudah berpindah, ditolak dengan `401 Unauthorized` (`status_code: \"05\"`).\n- **Guest:** Kosongkan header `Authorization` dan `X-User-ID` (menggunakan price group default).\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Wajib untuk User Login (kosongkan/nonaktifkan untuk Guest) |\n| X-User-ID | 12 | Opsional: jika diisi, wajib sama dengan user_id pada JWT |\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| category_code | string | Tidak | Filter kode kategori (mis. PULSA, DATA) |\n| brand_id | integer | Tidak | Filter ID brand |\n| is_fast_product | boolean | Tidak | Filter produk cepat/unggulan (true/false) |\n| sku | string | Tidak | Filter berdasarkan sku_internal |\n| search | string | Tidak | Kata kunci pencarian nama produk / SKU / brand / kategori |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Token JWT tidak ada saat X-User-ID dikirim, token expired/tidak sah, atau device_id sudah berpindah |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"category_code\": \"PULSA\",\n  \"brand_id\": 1,\n  \"is_fast_product\": true,\n  \"sku\": \"\",\n  \"search\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "description": "Wajib untuk User Login (kosongkan/nonaktifkan untuk Guest)"
+                      },
+                      {
+                        "key": "X-User-ID",
+                        "value": "12",
+                        "description": "Opsional: jika diisi, wajib sama dengan user_id pada JWT"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/products",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "products"
+                      ]
+                    },
+                    "description": "Mengambil daftar produk aktif beserta harga sesuai price group pengguna.\n\n- **User Login:** Sertakan header `Authorization: Bearer <token>` (opsional `X-User-ID` harus sesuai `user_id` di token). Bila token tidak valid/expired atau perangkat sudah berpindah, ditolak dengan `401 Unauthorized` (`status_code: \"05\"`).\n- **Guest:** Kosongkan header `Authorization` dan `X-User-ID` (menggunakan price group default).\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Wajib untuk User Login (kosongkan/nonaktifkan untuk Guest) |\n| X-User-ID | 12 | Opsional: jika diisi, wajib sama dengan user_id pada JWT |\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| category_code | string | Tidak | Filter kode kategori (mis. PULSA, DATA) |\n| brand_id | integer | Tidak | Filter ID brand |\n| is_fast_product | boolean | Tidak | Filter produk cepat/unggulan (true/false) |\n| sku | string | Tidak | Filter berdasarkan sku_internal |\n| search | string | Tidak | Kata kunci pencarian nama produk / SKU / brand / kategori |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Token JWT tidak ada saat X-User-ID dikirim, token expired/tidak sah, atau device_id sudah berpindah |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"category_code\": \"PULSA\",\n  \"brand_id\": 1,\n  \"is_fast_product\": true,\n  \"sku\": \"\",\n  \"search\": \"\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"Berhasil / Sukses\",\n  \"data\": {\n    \"products\": [\n      {\n        \"product_id\": 5,\n        \"sku_internal\": \"TSEL10\",\n        \"name\": \"Telkomsel 10.000\",\n        \"nominal_value\": 10000,\n        \"category_code\": \"PULSA\",\n        \"brand_id\": 1,\n        \"brand_code\": \"TELKOMSEL\",\n        \"brand_name\": \"Telkomsel\",\n        \"price_group_id\": 1,\n        \"product_price\": 10000,\n        \"admin_fee\": 500,\n        \"total_amount\": 10500\n      }\n    ]\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Deteksi Prefix & Operator",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/prefixes",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "prefixes"
+                  ]
+                },
+                "description": "Mendeteksi brand/operator sekaligus mengembalikan daftar prefix yang cocok berdasarkan `customer_id` (nomor HP tujuan).\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| customer_id | string | Ya | Nomor pelanggan / HP tujuan (minimal 4 digit) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 400 | 03 | customer_id kosong |\n| 404 | 04 | Nomor < 4 digit atau prefix operator tidak dikenali |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customer_id\": \"081234567890\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/prefixes",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "prefixes"
+                      ]
+                    },
+                    "description": "Mendeteksi brand/operator sekaligus mengembalikan daftar prefix yang cocok berdasarkan `customer_id` (nomor HP tujuan).\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| customer_id | string | Ya | Nomor pelanggan / HP tujuan (minimal 4 digit) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 400 | 03 | customer_id kosong |\n| 404 | 04 | Nomor < 4 digit atau prefix operator tidak dikenali |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"customer_id\": \"081234567890\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"Berhasil / Sukses\",\n  \"data\": {\n    \"customer_id\": \"081234567890\",\n    \"brand\": {\n      \"id\": 1,\n      \"code\": \"TELKOMSEL\",\n      \"name\": \"Telkomsel\",\n      \"logo_url\": \"https://cdn.example.com/telkomsel.png\"\n    },\n    \"prefixes\": [\n      \"0812\"\n    ]\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Daftar Kategori",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/catalog/categories",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "catalog",
+                    "categories"
+                  ]
+                },
+                "description": "Daftar kategori produk aktif. `use_prefix=true` (PULSA, DATA) berarti operator dideteksi otomatis dari nomor tujuan.\n"
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/catalog/categories",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "catalog",
+                        "categories"
+                      ]
+                    },
+                    "description": "Daftar kategori produk aktif. `use_prefix=true` (PULSA, DATA) berarti operator dideteksi otomatis dari nomor tujuan.\n"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"SUCCESS\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"code\": \"PULSA\",\n      \"name\": \"Pulsa\",\n      \"icon_url\": \"https://cdn.example.com/pulsa.png\",\n      \"use_prefix\": true\n    }\n  ]\n}"
+                }
+              ]
+            },
+            {
+              "name": "Daftar Brand",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/catalog/brands?category_code=PULSA",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "catalog",
+                    "brands"
+                  ],
+                  "query": [
+                    {
+                      "key": "category_code",
+                      "value": "PULSA",
+                      "description": "Kode kategori, mis. PULSA",
+                      "disabled": false
+                    }
+                  ]
+                },
+                "description": "Daftar brand/operator aktif yang memiliki produk aktif pada kategori tertentu.\n\n**Query**\n\n| Param | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| category_code | string | Ya | Kode kategori, mis. PULSA |\n"
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/catalog/brands?category_code=PULSA",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "catalog",
+                        "brands"
+                      ],
+                      "query": [
+                        {
+                          "key": "category_code",
+                          "value": "PULSA",
+                          "description": "Kode kategori, mis. PULSA",
+                          "disabled": false
+                        }
+                      ]
+                    },
+                    "description": "Daftar brand/operator aktif yang memiliki produk aktif pada kategori tertentu.\n\n**Query**\n\n| Param | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| category_code | string | Ya | Kode kategori, mis. PULSA |\n"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"SUCCESS\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"code\": \"TELKOMSEL\",\n      \"name\": \"Telkomsel\",\n      \"logo_url\": \"https://cdn.example.com/telkomsel.png\"\n    }\n  ]\n}"
+                }
+              ]
+            },
+            {
+              "name": "Deteksi Operator (GET)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/catalog/detect?customer_id=081234567890",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "catalog",
+                    "detect"
+                  ],
+                  "query": [
+                    {
+                      "key": "customer_id",
+                      "value": "081234567890",
+                      "description": "Nomor tujuan, minimal 4 digit",
+                      "disabled": false
+                    }
+                  ]
+                },
+                "description": "Deteksi operator dari 4 digit pertama nomor tujuan (setelah dinormalisasi ke format 08xx).\n\n**Query**\n\n| Param | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| customer_id | string | Ya | Nomor tujuan, minimal 4 digit |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 422 | 04 | Nomor < 4 digit atau prefix tidak dikenal |"
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/catalog/detect?customer_id=081234567890",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "catalog",
+                        "detect"
+                      ],
+                      "query": [
+                        {
+                          "key": "customer_id",
+                          "value": "081234567890",
+                          "description": "Nomor tujuan, minimal 4 digit",
+                          "disabled": false
+                        }
+                      ]
+                    },
+                    "description": "Deteksi operator dari 4 digit pertama nomor tujuan (setelah dinormalisasi ke format 08xx).\n\n**Query**\n\n| Param | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| customer_id | string | Ya | Nomor tujuan, minimal 4 digit |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 422 | 04 | Nomor < 4 digit atau prefix tidak dikenal |"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"SUCCESS\",\n  \"data\": {\n    \"id\": 1,\n    \"code\": \"TELKOMSEL\",\n    \"name\": \"Telkomsel\",\n    \"logo_url\": \"https://cdn.example.com/telkomsel.png\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Daftar Produk per Kategori/Brand (GET)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/catalog/products?category_code=PULSA&customer_id=081234567890&brand_code=&user_id=12",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "catalog",
+                    "products"
+                  ],
+                  "query": [
+                    {
+                      "key": "category_code",
+                      "value": "PULSA",
+                      "description": "Kode kategori",
+                      "disabled": false
+                    },
+                    {
+                      "key": "customer_id",
+                      "value": "081234567890",
+                      "description": "Wajib untuk PULSA/DATA",
+                      "disabled": false
+                    },
+                    {
+                      "key": "brand_code",
+                      "value": "",
+                      "description": "Untuk kategori non-prefix",
+                      "disabled": true
+                    },
+                    {
+                      "key": "user_id",
+                      "value": "12",
+                      "description": "Menentukan price group; kosong = guest",
+                      "disabled": false
+                    }
+                  ]
+                },
+                "description": "Daftar produk aktif beserta harga sesuai price group pengguna (guest memakai group default). Untuk kategori PULSA/DATA, `customer_id` wajib karena brand dideteksi otomatis; untuk kategori lain gunakan `brand_code`.\n\n**Query**\n\n| Param | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| category_code | string | Ya | Kode kategori |\n| customer_id | string | Kondisional | Wajib untuk PULSA/DATA |\n| brand_code | string | Kondisional | Untuk kategori non-prefix |\n| user_id | integer | Tidak | Menentukan price group; kosong = guest |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 422 | 04 | Kategori prefix & operator tak dikenali |\n| 404 | 04 | user_id tidak ditemukan |"
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/catalog/products?category_code=PULSA&customer_id=081234567890&brand_code=&user_id=12",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "catalog",
+                        "products"
+                      ],
+                      "query": [
+                        {
+                          "key": "category_code",
+                          "value": "PULSA",
+                          "description": "Kode kategori",
+                          "disabled": false
+                        },
+                        {
+                          "key": "customer_id",
+                          "value": "081234567890",
+                          "description": "Wajib untuk PULSA/DATA",
+                          "disabled": false
+                        },
+                        {
+                          "key": "brand_code",
+                          "value": "",
+                          "description": "Untuk kategori non-prefix",
+                          "disabled": true
+                        },
+                        {
+                          "key": "user_id",
+                          "value": "12",
+                          "description": "Menentukan price group; kosong = guest",
+                          "disabled": false
+                        }
+                      ]
+                    },
+                    "description": "Daftar produk aktif beserta harga sesuai price group pengguna (guest memakai group default). Untuk kategori PULSA/DATA, `customer_id` wajib karena brand dideteksi otomatis; untuk kategori lain gunakan `brand_code`.\n\n**Query**\n\n| Param | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| category_code | string | Ya | Kode kategori |\n| customer_id | string | Kondisional | Wajib untuk PULSA/DATA |\n| brand_code | string | Kondisional | Untuk kategori non-prefix |\n| user_id | integer | Tidak | Menentukan price group; kosong = guest |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 422 | 04 | Kategori prefix & operator tak dikenali |\n| 404 | 04 | user_id tidak ditemukan |"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"SUCCESS\",\n  \"data\": {\n    \"brand\": {\n      \"id\": 1,\n      \"code\": \"TELKOMSEL\",\n      \"name\": \"Telkomsel\",\n      \"logo_url\": \"https://cdn.example.com/telkomsel.png\"\n    },\n    \"products\": [\n      {\n        \"product_id\": 5,\n        \"sku_internal\": \"TSEL10\",\n        \"name\": \"Telkomsel 10.000\",\n        \"nominal_value\": 10000,\n        \"category_code\": \"PULSA\",\n        \"brand_id\": 1,\n        \"brand_code\": \"TELKOMSEL\",\n        \"brand_name\": \"Telkomsel\",\n        \"price_group_id\": 1,\n        \"product_price\": 10000,\n        \"admin_fee\": 500,\n        \"total_amount\": 10500\n      }\n    ]\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Transaksi",
+          "item": [
+            {
+              "name": "Inquiry Transaksi",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "description": "Wajib untuk User Login (kosongkan/nonaktifkan untuk transaksi Guest)"
+                  },
+                  {
+                    "key": "X-User-ID",
+                    "value": "12",
+                    "description": "Opsional: jika dikirim, wajib sama dengan user_id pada JWT"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/transaction/inquiry",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "transaction",
+                    "inquiry"
+                  ]
+                },
+                "description": "Melakukan validasi produk & nomor tujuan serta membuat record transaksi berstatus inquiry (`status_code: \"06\"`).\n\n- **User Login:** Wajib menyertakan header `Authorization: Bearer <token>` hasil login. Jika membawa `Authorization` atau `X-User-ID` tetapi token tidak ada/expired/invalid atau sesi perangkat sudah berpindah, langsung ditolak `401 Unauthorized` (`status_code: \"05\"`).\n- **Guest:** Jangan menyertakan header `Authorization` maupun `X-User-ID`, dan wajib mengisi `customer_phone`.\n- `allow_markup` bernilai `true` apabila pengguna ber-role `MERCHANT` dan tipe produk bukan `POSTPAID`.\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Wajib untuk User Login (kosongkan/nonaktifkan untuk transaksi Guest) |\n| X-User-ID | 12 | Opsional: jika dikirim, wajib sama dengan user_id pada JWT |\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| digital_product_id | integer | Ya | ID produk digital (mendukung juga alias product_id) |\n| customer_id | string | Ya | Nomor tujuan / ID pelanggan |\n| customer_phone | string | Kondisional | Nomor HP pembeli; wajib untuk transaksi guest |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Token JWT tidak sah/expired, X-User-ID tanpa token, atau sesi perangkat tidak valid |\n| 400 | 03 | Field wajib kosong |\n| 200 | 07 | Produk nonaktif atau prefix nomor tidak sesuai brand produk |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"digital_product_id\": 5,\n  \"customer_id\": \"081234567890\",\n  \"customer_phone\": \"081234567890\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "description": "Wajib untuk User Login (kosongkan/nonaktifkan untuk transaksi Guest)"
+                      },
+                      {
+                        "key": "X-User-ID",
+                        "value": "12",
+                        "description": "Opsional: jika dikirim, wajib sama dengan user_id pada JWT"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/transaction/inquiry",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "transaction",
+                        "inquiry"
+                      ]
+                    },
+                    "description": "Melakukan validasi produk & nomor tujuan serta membuat record transaksi berstatus inquiry (`status_code: \"06\"`).\n\n- **User Login:** Wajib menyertakan header `Authorization: Bearer <token>` hasil login. Jika membawa `Authorization` atau `X-User-ID` tetapi token tidak ada/expired/invalid atau sesi perangkat sudah berpindah, langsung ditolak `401 Unauthorized` (`status_code: \"05\"`).\n- **Guest:** Jangan menyertakan header `Authorization` maupun `X-User-ID`, dan wajib mengisi `customer_phone`.\n- `allow_markup` bernilai `true` apabila pengguna ber-role `MERCHANT` dan tipe produk bukan `POSTPAID`.\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Wajib untuk User Login (kosongkan/nonaktifkan untuk transaksi Guest) |\n| X-User-ID | 12 | Opsional: jika dikirim, wajib sama dengan user_id pada JWT |\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| digital_product_id | integer | Ya | ID produk digital (mendukung juga alias product_id) |\n| customer_id | string | Ya | Nomor tujuan / ID pelanggan |\n| customer_phone | string | Kondisional | Nomor HP pembeli; wajib untuk transaksi guest |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Token JWT tidak sah/expired, X-User-ID tanpa token, atau sesi perangkat tidak valid |\n| 400 | 03 | Field wajib kosong |\n| 200 | 07 | Produk nonaktif atau prefix nomor tidak sesuai brand produk |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"digital_product_id\": 5,\n  \"customer_id\": \"081234567890\",\n  \"customer_phone\": \"081234567890\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"06\",\n  \"status_description\": \"Inquiry berhasil, siap untuk pembayaran\",\n  \"data\": {\n    \"reference_no\": \"TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11\",\n    \"customer_phone\": \"081234567890\",\n    \"customer_id\": \"081234567890\",\n    \"customer_name\": null,\n    \"product_name\": \"Telkomsel 10.000\",\n    \"product_price\": 10000,\n    \"admin_fee\": 500,\n    \"total_amount\": 10500,\n    \"merchant_markup\": 0,\n    \"grand_total\": 10500,\n    \"serial_number\": null,\n    \"allow_markup\": true,\n    \"status_code\": \"06\",\n    \"status_description\": \"Inquiry berhasil, siap untuk pembayaran\",\n    \"created_at\": \"2026-10-12T08:30:00+07:00\",\n    \"updated_at\": \"2026-10-12T08:30:00+07:00\"\n  }\n}"
+                },
+                {
+                  "name": "Inquiry Gagal (status_code 07)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "description": "Wajib untuk User Login (kosongkan/nonaktifkan untuk transaksi Guest)"
+                      },
+                      {
+                        "key": "X-User-ID",
+                        "value": "12",
+                        "description": "Opsional: jika dikirim, wajib sama dengan user_id pada JWT"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/transaction/inquiry",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "transaction",
+                        "inquiry"
+                      ]
+                    },
+                    "description": "Melakukan validasi produk & nomor tujuan serta membuat record transaksi berstatus inquiry (`status_code: \"06\"`).\n\n- **User Login:** Wajib menyertakan header `Authorization: Bearer <token>` hasil login. Jika membawa `Authorization` atau `X-User-ID` tetapi token tidak ada/expired/invalid atau sesi perangkat sudah berpindah, langsung ditolak `401 Unauthorized` (`status_code: \"05\"`).\n- **Guest:** Jangan menyertakan header `Authorization` maupun `X-User-ID`, dan wajib mengisi `customer_phone`.\n- `allow_markup` bernilai `true` apabila pengguna ber-role `MERCHANT` dan tipe produk bukan `POSTPAID`.\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Wajib untuk User Login (kosongkan/nonaktifkan untuk transaksi Guest) |\n| X-User-ID | 12 | Opsional: jika dikirim, wajib sama dengan user_id pada JWT |\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| digital_product_id | integer | Ya | ID produk digital (mendukung juga alias product_id) |\n| customer_id | string | Ya | Nomor tujuan / ID pelanggan |\n| customer_phone | string | Kondisional | Nomor HP pembeli; wajib untuk transaksi guest |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Token JWT tidak sah/expired, X-User-ID tanpa token, atau sesi perangkat tidak valid |\n| 400 | 03 | Field wajib kosong |\n| 200 | 07 | Produk nonaktif atau prefix nomor tidak sesuai brand produk |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"digital_product_id\": 5,\n  \"customer_id\": \"081234567890\",\n  \"customer_phone\": \"081234567890\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"07\",\n  \"status_description\": \"Inquiry gagal: nomor tujuan/operator tidak valid\",\n  \"data\": {\n    \"customer_id\": \"081234567890\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Confirm Payment (Konfirmasi Pembayaran)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "description": "Wajib jika transaksi dibuat oleh User Login (kosongkan/nonaktifkan untuk transaksi Guest)"
+                  },
+                  {
+                    "key": "X-User-ID",
+                    "value": "12",
+                    "description": "Opsional: jika dikirim, wajib sama dengan user_id pada JWT"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/transaction/confirm-payment",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "transaction",
+                    "confirm-payment"
+                  ]
+                },
+                "description": "Mengonfirmasi pembayaran atas transaksi berstatus inquiry (`06`), menyimpan `merchant_markup` & `grand_total`, mengubah status ke pemrosesan provider, lalu langsung men-dispatch transaksi ke provider.\n\n- **Wajib JWT untuk Transaksi User Login:** Jika saat Inquiry transaksi dibuat oleh User Login (`trx.UserID != nil`), maka pemanggilan Confirm Payment **wajib** menyertakan `Authorization: Bearer <token>` yang valid dengan `user_id` yang sama (jika tanpa token atau berbeda user -> `401 Unauthorized` / `status_code: \"05\"`).\n- `merchant_markup` hanya berlaku untuk transaksi milik user dengan role `MERCHANT` pada produk non-postpaid (0 s.d. `MAX_MERCHANT_MARKUP`).\n- Jika provider langsung memberi hasil, respons langsung mengembalikan `status_code` `00` (sukses) atau `02` (gagal); jika masih menunggu provider, mengembalikan `01` (pending).\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Wajib jika transaksi dibuat oleh User Login (kosongkan/nonaktifkan untuk transaksi Guest) |\n| X-User-ID | 12 | Opsional: jika dikirim, wajib sama dengan user_id pada JWT |\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| reference_no | string | Ya | Nomor referensi dari respons Inquiry |\n| merchant_markup | number | Tidak | Markup harga jual merchant (Rp, 0 s.d. MAX_MERCHANT_MARKUP) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Transaksi user login ditembak tanpa token JWT, token expired/tidak sah, atau user_id berbeda |\n| 400 | 03 | reference_no kosong |\n| 404 | 04 | reference_no tidak ditemukan |\n| 422 | 03 | Transaksi sudah pernah diproses atau markup di luar batas |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference_no\": \"TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11\",\n  \"merchant_markup\": 500\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "description": "Wajib jika transaksi dibuat oleh User Login (kosongkan/nonaktifkan untuk transaksi Guest)"
+                      },
+                      {
+                        "key": "X-User-ID",
+                        "value": "12",
+                        "description": "Opsional: jika dikirim, wajib sama dengan user_id pada JWT"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/transaction/confirm-payment",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "transaction",
+                        "confirm-payment"
+                      ]
+                    },
+                    "description": "Mengonfirmasi pembayaran atas transaksi berstatus inquiry (`06`), menyimpan `merchant_markup` & `grand_total`, mengubah status ke pemrosesan provider, lalu langsung men-dispatch transaksi ke provider.\n\n- **Wajib JWT untuk Transaksi User Login:** Jika saat Inquiry transaksi dibuat oleh User Login (`trx.UserID != nil`), maka pemanggilan Confirm Payment **wajib** menyertakan `Authorization: Bearer <token>` yang valid dengan `user_id` yang sama (jika tanpa token atau berbeda user -> `401 Unauthorized` / `status_code: \"05\"`).\n- `merchant_markup` hanya berlaku untuk transaksi milik user dengan role `MERCHANT` pada produk non-postpaid (0 s.d. `MAX_MERCHANT_MARKUP`).\n- Jika provider langsung memberi hasil, respons langsung mengembalikan `status_code` `00` (sukses) atau `02` (gagal); jika masih menunggu provider, mengembalikan `01` (pending).\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Wajib jika transaksi dibuat oleh User Login (kosongkan/nonaktifkan untuk transaksi Guest) |\n| X-User-ID | 12 | Opsional: jika dikirim, wajib sama dengan user_id pada JWT |\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| reference_no | string | Ya | Nomor referensi dari respons Inquiry |\n| merchant_markup | number | Tidak | Markup harga jual merchant (Rp, 0 s.d. MAX_MERCHANT_MARKUP) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Transaksi user login ditembak tanpa token JWT, token expired/tidak sah, atau user_id berbeda |\n| 400 | 03 | reference_no kosong |\n| 404 | 04 | reference_no tidak ditemukan |\n| 422 | 03 | Transaksi sudah pernah diproses atau markup di luar batas |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"reference_no\": \"TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11\",\n  \"merchant_markup\": 500\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"Transaksi Sukses\",\n  \"data\": {\n    \"reference_no\": \"TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11\",\n    \"customer_phone\": \"081234567890\",\n    \"customer_id\": \"081234567890\",\n    \"customer_name\": null,\n    \"product_name\": \"Telkomsel 10.000\",\n    \"product_price\": 10000,\n    \"admin_fee\": 500,\n    \"total_amount\": 10500,\n    \"merchant_markup\": 500,\n    \"grand_total\": 11000,\n    \"serial_number\": \"1234567890123456\",\n    \"allow_markup\": false,\n    \"status_code\": \"00\",\n    \"status_description\": \"Transaksi Sukses\",\n    \"created_at\": \"2026-10-12T08:30:00+07:00\",\n    \"updated_at\": \"2026-10-12T08:30:00+07:00\"\n  }\n}"
+                },
+                {
+                  "name": "Sedang Diproses Provider (status_code 01)",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "description": "Wajib jika transaksi dibuat oleh User Login (kosongkan/nonaktifkan untuk transaksi Guest)"
+                      },
+                      {
+                        "key": "X-User-ID",
+                        "value": "12",
+                        "description": "Opsional: jika dikirim, wajib sama dengan user_id pada JWT"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/transaction/confirm-payment",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "transaction",
+                        "confirm-payment"
+                      ]
+                    },
+                    "description": "Mengonfirmasi pembayaran atas transaksi berstatus inquiry (`06`), menyimpan `merchant_markup` & `grand_total`, mengubah status ke pemrosesan provider, lalu langsung men-dispatch transaksi ke provider.\n\n- **Wajib JWT untuk Transaksi User Login:** Jika saat Inquiry transaksi dibuat oleh User Login (`trx.UserID != nil`), maka pemanggilan Confirm Payment **wajib** menyertakan `Authorization: Bearer <token>` yang valid dengan `user_id` yang sama (jika tanpa token atau berbeda user -> `401 Unauthorized` / `status_code: \"05\"`).\n- `merchant_markup` hanya berlaku untuk transaksi milik user dengan role `MERCHANT` pada produk non-postpaid (0 s.d. `MAX_MERCHANT_MARKUP`).\n- Jika provider langsung memberi hasil, respons langsung mengembalikan `status_code` `00` (sukses) atau `02` (gagal); jika masih menunggu provider, mengembalikan `01` (pending).\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Wajib jika transaksi dibuat oleh User Login (kosongkan/nonaktifkan untuk transaksi Guest) |\n| X-User-ID | 12 | Opsional: jika dikirim, wajib sama dengan user_id pada JWT |\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| reference_no | string | Ya | Nomor referensi dari respons Inquiry |\n| merchant_markup | number | Tidak | Markup harga jual merchant (Rp, 0 s.d. MAX_MERCHANT_MARKUP) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Transaksi user login ditembak tanpa token JWT, token expired/tidak sah, atau user_id berbeda |\n| 400 | 03 | reference_no kosong |\n| 404 | 04 | reference_no tidak ditemukan |\n| 422 | 03 | Transaksi sudah pernah diproses atau markup di luar batas |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"reference_no\": \"TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11\",\n  \"merchant_markup\": 500\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"01\",\n  \"status_description\": \"Sedang diproses oleh provider\",\n  \"data\": {\n    \"reference_no\": \"TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11\",\n    \"customer_phone\": \"081234567890\",\n    \"customer_id\": \"081234567890\",\n    \"customer_name\": null,\n    \"product_name\": \"Telkomsel 10.000\",\n    \"product_price\": 10000,\n    \"admin_fee\": 500,\n    \"total_amount\": 10500,\n    \"merchant_markup\": 500,\n    \"grand_total\": 11000,\n    \"serial_number\": null,\n    \"allow_markup\": false,\n    \"status_code\": \"01\",\n    \"status_description\": \"Sedang diproses oleh provider\",\n    \"created_at\": \"2026-10-12T08:30:00+07:00\",\n    \"updated_at\": \"2026-10-12T08:30:00+07:00\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Cek Status Transaksi",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "description": "Opsional untuk User Login (kosongkan untuk transaksi Guest)"
+                  },
+                  {
+                    "key": "X-User-ID",
+                    "value": "12",
+                    "description": "Opsional: jika dikirim, wajib sama dengan user_id pada JWT"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/transaction/status/:reference_no",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "transaction",
+                    "status",
+                    ":reference_no"
+                  ],
+                  "variable": [
+                    {
+                      "key": "reference_no",
+                      "value": "TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11"
+                    }
+                  ]
+                },
+                "description": "Mengecek status terkini satu transaksi berdasarkan `reference_no`. Bila menyertakan `Authorization: Bearer <token>` (atau `X-User-ID`), token JWT wajib valid dan `user_id` harus cocok dengan pemilik transaksi.\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Opsional untuk User Login (kosongkan untuk transaksi Guest) |\n| X-User-ID | 12 | Opsional: jika dikirim, wajib sama dengan user_id pada JWT |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Token JWT tidak sah/expired atau sesi perangkat tidak valid |\n| 404 | 04 | reference_no tidak ada atau bukan milik user |"
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "description": "Opsional untuk User Login (kosongkan untuk transaksi Guest)"
+                      },
+                      {
+                        "key": "X-User-ID",
+                        "value": "12",
+                        "description": "Opsional: jika dikirim, wajib sama dengan user_id pada JWT"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/transaction/status/:reference_no",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "transaction",
+                        "status",
+                        ":reference_no"
+                      ],
+                      "variable": [
+                        {
+                          "key": "reference_no",
+                          "value": "TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11"
+                        }
+                      ]
+                    },
+                    "description": "Mengecek status terkini satu transaksi berdasarkan `reference_no`. Bila menyertakan `Authorization: Bearer <token>` (atau `X-User-ID`), token JWT wajib valid dan `user_id` harus cocok dengan pemilik transaksi.\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Opsional untuk User Login (kosongkan untuk transaksi Guest) |\n| X-User-ID | 12 | Opsional: jika dikirim, wajib sama dengan user_id pada JWT |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Token JWT tidak sah/expired atau sesi perangkat tidak valid |\n| 404 | 04 | reference_no tidak ada atau bukan milik user |"
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"Transaksi Sukses\",\n  \"data\": {\n    \"reference_no\": \"TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11\",\n    \"customer_phone\": \"081234567890\",\n    \"customer_id\": \"081234567890\",\n    \"customer_name\": null,\n    \"product_name\": \"Telkomsel 10.000\",\n    \"product_price\": 10000,\n    \"admin_fee\": 500,\n    \"total_amount\": 10500,\n    \"merchant_markup\": 500,\n    \"grand_total\": 11000,\n    \"serial_number\": \"1234567890123456\",\n    \"allow_markup\": false,\n    \"status_code\": \"00\",\n    \"status_description\": \"Transaksi Sukses\",\n    \"created_at\": \"2026-10-12T08:30:00+07:00\",\n    \"updated_at\": \"2026-10-12T08:30:00+07:00\"\n  }\n}"
+                }
+              ]
+            },
+            {
+              "name": "Riwayat Transaksi",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "description": "Wajib untuk riwayat User Login (kosongkan untuk riwayat Guest via customer_phone)"
+                  },
+                  {
+                    "key": "X-User-ID",
+                    "value": "12",
+                    "description": "Opsional: jika dikirim, wajib sama dengan user_id pada JWT"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/transactions",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "transactions"
+                  ]
+                },
+                "description": "Mengambil daftar riwayat transaksi (hanya transaksi yang sudah melewati tahap inquiry, yaitu berstatus `00`, `01`, atau `02`).\n\n- **User Login:** Sertakan header `Authorization: Bearer <token>` untuk menampilkan riwayat transaksi milik user tersebut.\n- **Guest:** Tanpa header `Authorization` dan `X-User-ID`, wajib mengisi `customer_phone` pada body.\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Wajib untuk riwayat User Login (kosongkan untuk riwayat Guest via customer_phone) |\n| X-User-ID | 12 | Opsional: jika dikirim, wajib sama dengan user_id pada JWT |\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| customer_phone | string | Kondisional | Wajib diisi untuk melihat riwayat transaksi guest (tanpa token JWT) |\n| limit | integer | Tidak | Batas jumlah transaksi (1-100, default 30) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Token JWT tidak sah/expired atau sesi perangkat tidak valid |\n| 400 | 03 | Tanpa token JWT dan customer_phone kosong |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customer_phone\": \"081234567890\",\n  \"limit\": 30\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "description": "Wajib untuk riwayat User Login (kosongkan untuk riwayat Guest via customer_phone)"
+                      },
+                      {
+                        "key": "X-User-ID",
+                        "value": "12",
+                        "description": "Opsional: jika dikirim, wajib sama dengan user_id pada JWT"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/transactions",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "transactions"
+                      ]
+                    },
+                    "description": "Mengambil daftar riwayat transaksi (hanya transaksi yang sudah melewati tahap inquiry, yaitu berstatus `00`, `01`, atau `02`).\n\n- **User Login:** Sertakan header `Authorization: Bearer <token>` untuk menampilkan riwayat transaksi milik user tersebut.\n- **Guest:** Tanpa header `Authorization` dan `X-User-ID`, wajib mengisi `customer_phone` pada body.\n\n**Headers**\n\n| Header | Contoh | Keterangan |\n|---|---|---|\n| Authorization | Bearer {{jwt_token}} | Wajib untuk riwayat User Login (kosongkan untuk riwayat Guest via customer_phone) |\n| X-User-ID | 12 | Opsional: jika dikirim, wajib sama dengan user_id pada JWT |\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| customer_phone | string | Kondisional | Wajib diisi untuk melihat riwayat transaksi guest (tanpa token JWT) |\n| limit | integer | Tidak | Batas jumlah transaksi (1-100, default 30) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | Token JWT tidak sah/expired atau sesi perangkat tidak valid |\n| 400 | 03 | Tanpa token JWT dan customer_phone kosong |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"customer_phone\": \"081234567890\",\n  \"limit\": 30\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"Berhasil / Sukses\",\n  \"data\": {\n    \"transactions\": [\n      {\n        \"reference_no\": \"TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11\",\n        \"customer_phone\": \"081234567890\",\n        \"customer_id\": \"081234567890\",\n        \"customer_name\": null,\n        \"product_name\": \"Telkomsel 10.000\",\n        \"product_price\": 10000,\n        \"admin_fee\": 500,\n        \"total_amount\": 10500,\n        \"merchant_markup\": 500,\n        \"grand_total\": 11000,\n        \"serial_number\": \"1234567890123456\",\n        \"allow_markup\": false,\n        \"status_code\": \"00\",\n        \"status_description\": \"Transaksi Sukses\",\n        \"created_at\": \"2026-10-12T08:30:00+07:00\",\n        \"updated_at\": \"2026-10-12T08:30:00+07:00\"\n      }\n    ]\n  }\n}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Webhook (X-Callback-Token)",
+      "description": "Endpoint /webhooks/*. Tanpa HMAC.",
+      "item": [
+        {
+          "name": "Webhook",
+          "item": [
+            {
+              "name": "Webhook Provider",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "X-Callback-Token",
+                    "value": "{{provider_callback_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/webhooks/provider",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "provider"
+                  ]
+                },
+                "description": "Dipanggil provider (format Digiflazz). **Tanpa HMAC**; autentikasi via header `X-Callback-Token` (= `PROVIDER_CALLBACK_TOKEN`) atau query `?token=`. Payload boleh flat atau dibungkus objek `data`. Memperbarui status transaksi menjadi `00` (sukses), `01` (pending), atau `02` (gagal).\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| ref_id | string | Ya | Nomor referensi transaksi (reference_no) |\n| status | string | Ya | Status provider (Sukses / Pending / Gagal) |\n| rc | string | Tidak | Response code provider |\n| message | string | Tidak | Pesan status dari provider |\n| sn | string | Tidak | Serial number / token PLN |\n| data | object | Tidak | Bungkus payload standar webhook Digiflazz (berisi field yang sama) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | X-Callback-Token salah |\n| 404 | 04 | ref_id tidak ditemukan |\n| 422 | 03 | ref_id kosong |",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"data\": {\n    \"ref_id\": \"TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11\",\n    \"status\": \"Sukses\",\n    \"rc\": \"00\",\n    \"message\": \"Transaksi Sukses\",\n    \"sn\": \"1234567890123456\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": [
+                {
+                  "name": "Sukses",
+                  "originalRequest": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "X-Callback-Token",
+                        "value": "{{provider_callback_token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/webhooks/provider",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "webhooks",
+                        "provider"
+                      ]
+                    },
+                    "description": "Dipanggil provider (format Digiflazz). **Tanpa HMAC**; autentikasi via header `X-Callback-Token` (= `PROVIDER_CALLBACK_TOKEN`) atau query `?token=`. Payload boleh flat atau dibungkus objek `data`. Memperbarui status transaksi menjadi `00` (sukses), `01` (pending), atau `02` (gagal).\n\n**Body**\n\n| Field | Tipe | Wajib | Keterangan |\n|---|---|---|---|\n| ref_id | string | Ya | Nomor referensi transaksi (reference_no) |\n| status | string | Ya | Status provider (Sukses / Pending / Gagal) |\n| rc | string | Tidak | Response code provider |\n| message | string | Tidak | Pesan status dari provider |\n| sn | string | Tidak | Serial number / token PLN |\n| data | object | Tidak | Bungkus payload standar webhook Digiflazz (berisi field yang sama) |\n\n**Kemungkinan error**\n\n| HTTP | status_code | Kondisi |\n|---|---|---|\n| 401 | 05 | X-Callback-Token salah |\n| 404 | 04 | ref_id tidak ditemukan |\n| 422 | 03 | ref_id kosong |",
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"data\": {\n    \"ref_id\": \"TRX-20261012-7B0C1E2A5D3F4C9A9E1B2F6D8A4C0B11\",\n    \"status\": \"Sukses\",\n    \"rc\": \"00\",\n    \"message\": \"Transaksi Sukses\",\n    \"sn\": \"1234567890123456\"\n  }\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    }
+                  },
+                  "status": "OK",
+                  "code": 200,
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"status_code\": \"00\",\n  \"status_description\": \"SUCCESS\",\n  \"data\": {}\n}"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:10001"
+    },
+    {
+      "key": "app_key",
+      "value": "dev-shared-secret-change-me"
+    },
+    {
+      "key": "jwt_token",
+      "value": ""
+    },
+    {
+      "key": "provider_callback_token",
+      "value": "dev-provider-token"
+    }
+  ]
+}
