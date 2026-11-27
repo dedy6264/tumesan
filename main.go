@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"ppobcore/configs"
 	"ppobcore/connections"
@@ -22,7 +23,7 @@ type (
 )
 
 func main() {
-
+	fmt.Println("SUCCESS StartUP")
 	connections.Connect()
 	defer connections.DBconn().Close()
 	e := echo.New()
