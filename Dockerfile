@@ -1,5 +1,5 @@
 # Create Builder Image
-FROM --platform=linux/amd64 golang:1.18 as builder
+FROM --platform=linux/amd64 golang:1.22 as builder
 LABEL maintainer="Dedy <dedy.kusworo@gmail.com>"
 
 ENV GIT_TERMINAL_PROMPT=1 GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=amd64
